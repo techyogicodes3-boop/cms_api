@@ -10,7 +10,7 @@ const {
 
 const normalizePayloadImageUrls = (payload = {}) => {
   if (Array.isArray(payload.imageUrls)) {
-    return payload.imageUrls.filter(Boolean);
+    return payload.imageUrls.filter(Boolean).slice(0, 10);
   }
 
   if (payload.imageUrl !== undefined) {
@@ -22,7 +22,7 @@ const normalizePayloadImageUrls = (payload = {}) => {
 
 const normalizePayloadImagePublicIds = (payload = {}) => {
   if (Array.isArray(payload.imagePublicIds)) {
-    return payload.imagePublicIds.filter(Boolean);
+    return payload.imagePublicIds.slice(0, 10);
   }
 
   if (payload.imagePublicId !== undefined) {
@@ -245,6 +245,8 @@ exports.updateItem = async (req, h) => {
 
   const normalizedImageUrls = normalizePayloadImageUrls({ imageUrl, imageUrls });
   const normalizedImagePublicIds = normalizePayloadImagePublicIds({ imagePublicId, imagePublicIds });
+  const imagesWereUpdated = imageUrls !== undefined || imageUrl !== undefined;
+  const publicIdsWereUpdated = imagePublicIds !== undefined || imagePublicId !== undefined;
 
   if (catalogueId) {
     const targetCatalogue = await Catalogue.findOne({ uuid: catalogueId }).select("uuid").lean();
@@ -258,6 +260,7 @@ exports.updateItem = async (req, h) => {
   if (catalogueId) updateData.catalogueId = catalogueId;
   if (normalizedImageUrls !== undefined) updateData.imageUrls = normalizedImageUrls;
   if (normalizedImagePublicIds !== undefined) updateData.imagePublicIds = normalizedImagePublicIds;
+  else if (imagesWereUpdated) updateData.imagePublicIds = [];
   if (validatedDescription) updateData.validatedDescription = validatedDescription;
   if (stock !== undefined) updateData.stock = stock;
   if (stockQuantity !== undefined) updateData.stock = stockQuantity; // 👈 mapping
@@ -269,8 +272,11 @@ exports.updateItem = async (req, h) => {
     { new: true }
   );
 
-  if (normalizedImagePublicIds !== undefined) {
-    await deleteRemovedImages(existingItem.imagePublicIds || [], updatedItem.imagePublicIds || []);
+  if (imagesWereUpdated || publicIdsWereUpdated) {
+    await deleteRemovedImages(
+      existingItem.imagePublicIds?.length ? existingItem.imagePublicIds : [existingItem.imagePublicId].filter(Boolean),
+      updatedItem.imagePublicIds || []
+    );
   }
 
   return { success: true, data: updatedItem };
@@ -293,7 +299,7 @@ exports.deleteItem = async (req, h) => {
     return { success: false, message: "Item not found" };
   }
 
-  await deleteImages(item.imagePublicIds || []);
+  await deleteImages(item.imagePublicIds?.length ? item.imagePublicIds : [item.imagePublicId].filter(Boolean));
 
   return h.response({ success: true, message: "Item deleted successfully" }).code(200);
 };

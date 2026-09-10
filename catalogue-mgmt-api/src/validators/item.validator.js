@@ -11,9 +11,9 @@ exports.createItemSchema = Joi.object({
 
   // accept both imageUrl (string) and imageUrls (array)
   imageUrl: Joi.string().uri().allow("").optional(),
-  imageUrls: Joi.array().items(Joi.string().uri().allow("")).optional(),
+  imageUrls: Joi.array().max(10).items(Joi.string().uri().allow("")).optional(),
   imagePublicId: Joi.string().allow("").optional(),
-  imagePublicIds: Joi.array().items(Joi.string().allow("")).optional(),
+  imagePublicIds: Joi.array().max(10).items(Joi.string().allow("")).optional(),
   validatedDescription: Joi.string().allow("").optional(),
 
   isActive: Joi.boolean().optional()
@@ -24,9 +24,9 @@ exports.updateItemSchema = Joi.object({
   price: Joi.number().optional(),
   catalogueId: Joi.string().optional(),
   imageUrl: Joi.string().uri().allow("").optional(),
-  imageUrls: Joi.array().items(Joi.string().uri().allow("")).optional(),
+  imageUrls: Joi.array().max(10).items(Joi.string().uri().allow("")).optional(),
   imagePublicId: Joi.string().allow("").optional(),
-  imagePublicIds: Joi.array().items(Joi.string().allow("")).optional(),
+  imagePublicIds: Joi.array().max(10).items(Joi.string().allow("")).optional(),
   validatedDescription: Joi.string().optional(),
   stock: Joi.number().optional(),
   stockQuantity: Joi.number().optional(),

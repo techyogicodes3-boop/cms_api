@@ -12,7 +12,7 @@ module.exports = [
     path: "/api/v1/sliders",
     options: {
       tags: ["api", "sliders"],
-      description: "Fetch public home slider images",
+      description: "Fetch public home slider images and videos",
       auth: false,
     },
     handler: ImageController.listSliderImages,
@@ -23,12 +23,12 @@ module.exports = [
     options: {
       pre: [verifyToken, isAdmin],
       tags: ["api", "sliders"],
-      description: "Upload a home slider image",
+      description: "Upload a home slider image or video",
       payload: {
         output: "stream",
         parse: true,
         multipart: true,
-        maxBytes: 5 * 1024 * 1024,
+        maxBytes: 52 * 1024 * 1024,
       },
       validate: {
         payload: Joi.object({
@@ -40,12 +40,35 @@ module.exports = [
     handler: ImageController.uploadSliderImage,
   },
   {
+    method: "PUT",
+    path: "/api/v1/admin/sliders/{id}",
+    options: {
+      pre: [verifyToken, isAdmin],
+      tags: ["api", "sliders"],
+      description: "Replace a home slider image or video and hard-delete the old Cloudinary asset",
+      payload: {
+        output: "stream",
+        parse: true,
+        multipart: true,
+        maxBytes: 52 * 1024 * 1024,
+      },
+      validate: {
+        params: Joi.object({ id: Joi.string().required() }),
+        payload: Joi.object({
+          image: Joi.any().optional(),
+          file: Joi.any().optional(),
+        }).or("image", "file"),
+      },
+    },
+    handler: ImageController.replaceSliderMedia,
+  },
+  {
     method: "DELETE",
     path: "/api/v1/admin/sliders",
     options: {
       pre: [verifyToken, isAdmin],
       tags: ["api", "sliders"],
-      description: "Delete a home slider image from Cloudinary and the database",
+      description: "Hard-delete home slider media from Cloudinary and the database",
       validate: {
         payload: Joi.object({
           publicId: Joi.string().required(),

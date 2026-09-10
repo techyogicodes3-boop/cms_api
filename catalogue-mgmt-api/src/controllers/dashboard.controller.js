@@ -13,6 +13,8 @@ const mapCatalogueRow = (catalogue) => ({
   itemsCount: catalogue.itemsCount || 0,
   image: catalogue.image || catalogue.imageUrl || catalogue.coverImage || catalogue.thumbnail || null,
   imagePublicId: catalogue.imagePublicId || null,
+  imageUrls: catalogue.imageUrls?.length ? catalogue.imageUrls : [catalogue.imageUrl].filter(Boolean),
+  imagePublicIds: catalogue.imagePublicIds?.length ? catalogue.imagePublicIds : [catalogue.imagePublicId].filter(Boolean),
   createdAt: catalogue.createdAt || catalogue.createdDate
 });
 
@@ -76,6 +78,8 @@ exports.getSummary = async () => {
           type: 1,
           imageUrl: 1,
           imagePublicId: 1,
+          imageUrls: 1,
+          imagePublicIds: 1,
           isPublished: 1,
           createdAt: 1,
           itemsCount: { $size: "$items" }

@@ -7,6 +7,8 @@ exports.createCatalogueSchema = Joi.object({
   description: Joi.string().allow(""),
   imageUrl: Joi.string().uri().allow(""),
   imagePublicId: Joi.string().allow(""),
+  imageUrls: Joi.array().max(10).items(Joi.string().uri().allow("")).optional(),
+  imagePublicIds: Joi.array().max(10).items(Joi.string().allow("")).optional(),
   shouldAutoPublish: Joi.boolean().required()
 });
 
@@ -17,6 +19,8 @@ exports.updateCatalogueSchema = Joi.object({
   description: Joi.string().allow(""),
   imageUrl: Joi.string().uri().allow(""),
   imagePublicId: Joi.string().allow(""),
+  imageUrls: Joi.array().max(10).items(Joi.string().uri().allow("")).optional(),
+  imagePublicIds: Joi.array().max(10).items(Joi.string().allow("")).optional(),
   isPublished: Joi.boolean()
 });
 

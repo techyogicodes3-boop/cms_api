@@ -9,6 +9,8 @@ const catalogueSchema = new mongoose.Schema({
   description: { type: String },
   imageUrl: { type: String },
   imagePublicId: { type: String },
+  imageUrls: [{ type: String }],
+  imagePublicIds: [{ type: String }],
   isPublished: { type: Boolean, default: false },
   createdBy: { type: String },
   publishedAt: { type: Date }

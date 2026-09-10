@@ -31,18 +31,21 @@ exports.listImages = async (req) => {
 
 exports.listSliderImages = async () => {
   const data = await imageService.listImages({ folder: imageService.SLIDER_FOLDER });
-  return { success: true, data: data.reverse() };
+  return {
+    success: true,
+    data: data.reverse().map((asset) => ({
+      ...asset,
+      mediaType: asset.mediaType || (asset.mimeType?.startsWith("video/") ? "video" : "image"),
+      mediaUrl: asset.imageUrl,
+    })),
+  };
 };
 
 exports.uploadSliderImage = async (req, h) => {
   try {
     const file = req.payload?.image || req.payload?.file;
     const uploadedBy = req.authUser?.id;
-    const data = await imageService.uploadImage({
-      file,
-      folder: imageService.SLIDER_FOLDER,
-      uploadedBy,
-    });
+    const data = await imageService.uploadSliderMedia({ file, uploadedBy });
 
     return h.response({ success: true, data }).code(201);
   } catch (error) {
@@ -51,12 +54,32 @@ exports.uploadSliderImage = async (req, h) => {
     }
 
     if (error.http_code === 401 || /invalid cloud_name|api key|signature/i.test(error.message || "")) {
-      console.error("Slider image upload configuration failed:", error.message || error);
-      return Boom.badGateway("Image upload service is not configured correctly. Check Cloudinary credentials.");
+      console.error("Slider media upload configuration failed:", error.message || error);
+      return Boom.badGateway("Media upload service is not configured correctly. Check Cloudinary credentials.");
     }
 
-    console.error("Slider image upload failed:", error);
-    return Boom.internal("Failed to upload slider image.");
+    console.error("Slider media upload failed:", error);
+    return Boom.internal("Failed to upload slider media.");
+  }
+};
+
+exports.replaceSliderMedia = async (req, h) => {
+  try {
+    const file = req.payload?.image || req.payload?.file;
+    const data = await imageService.replaceSliderMedia({
+      id: req.params.id,
+      file,
+      uploadedBy: req.authUser?.id,
+    });
+    return h.response({ success: true, data }).code(200);
+  } catch (error) {
+    if (error.statusCode === 404) return Boom.notFound(error.message);
+    if (/required|allowed|MB|credentials/i.test(error.message)) return Boom.badRequest(error.message);
+    if (error.http_code === 401 || /invalid cloud_name|api key|signature/i.test(error.message || "")) {
+      return Boom.badGateway("Media upload service is not configured correctly. Check Cloudinary credentials.");
+    }
+    console.error("Slider media replacement failed:", error);
+    return Boom.internal("Failed to replace slider media.");
   }
 };
 
@@ -71,11 +94,11 @@ exports.deleteImage = async (req, h) => {
     }
 
     if (error.http_code === 401 || /invalid cloud_name|api key|signature/i.test(error.message || "")) {
-      console.error("Image delete configuration failed:", error.message || error);
-      return Boom.badGateway("Image upload service is not configured correctly. Check Cloudinary credentials.");
+      console.error("Media delete configuration failed:", error.message || error);
+      return Boom.badGateway("Media service is not configured correctly. Check Cloudinary credentials.");
     }
 
-    console.error("Image delete failed:", error);
-    return Boom.internal("Failed to delete image.");
+    console.error("Media delete failed:", error);
+    return Boom.internal("Failed to delete media.");
   }
 };
