@@ -7,7 +7,14 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true, index: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["admin", "user"], default: "user" },
-  status: { type: String, enum: ["active", "disabled"], default: "active", index: true }
+  status: { type: String, enum: ["active", "disabled"], default: "active", index: true },
+  phone: { type: String, default: "" },
+  address: {
+    streetAddress: { type: String, default: "" },
+    city: { type: String, default: "" },
+    state: { type: String, default: "" },
+    zipcode: { type: String, default: "" },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

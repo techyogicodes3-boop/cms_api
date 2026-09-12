@@ -43,11 +43,11 @@ const getMockAuth = (email = "admin@example.com", role = "admin") => ({
   data: {
     user: {
       id: "dev-admin",
-      name: "Dev Admin",
+      name: role === "admin" ? "Dev Admin" : "Dev Customer",
       email,
       role
     },
-    token: jwt.sign({ id: "dev-admin", role }, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn })
+    token: jwt.sign({ id: "dev-admin", email, name: role === "admin" ? "Dev Admin" : "Dev Customer", role }, jwtConfig.secret, { expiresIn: jwtConfig.expiresIn })
   }
 });
 
@@ -61,7 +61,10 @@ const toClientAuthPayload = (auth) => ({
 exports.register = async (req, h) => {
   const { name, password } = req.payload;
   const email = normalizeEmail(req.payload.email);
-  const requestedRole = req.payload.role === "admin" ? "admin" : "user";
+  // Public registration always creates a customer account. Admins must be
+  // provisioned directly by an operator; accepting an admin role here would
+  // allow anyone on the internet to elevate their own account.
+  const requestedRole = "user";
 
   if (isMockMode()) {
     if (!shouldUseMockData()) {
@@ -107,7 +110,7 @@ exports.login = async (req, h) => {
       return h.response({ success: false, message: "Authentication service unavailable" }).code(503);
     }
 
-    const mockAuth = getMockAuth(email, "user");
+    const mockAuth = getMockAuth(email, email === "admin@example.com" ? "admin" : "user");
     return attachAuthCookies(h.response(toClientAuthPayload(mockAuth)), mockAuth.data.token, mockAuth.data.user.role);
   }
 
@@ -144,6 +147,8 @@ exports.me = async (req) => ({
       email: req.authUser.email,
       role: req.authUser.role,
       status: req.authUser.status || "active",
+      phone: req.authUser.phone || "",
+      address: req.authUser.address || { streetAddress: "", city: "", state: "", zipcode: "" },
     },
   },
 });

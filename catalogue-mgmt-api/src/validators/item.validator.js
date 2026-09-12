@@ -27,7 +27,7 @@ exports.updateItemSchema = Joi.object({
   imageUrls: Joi.array().max(10).items(Joi.string().uri().allow("")).optional(),
   imagePublicId: Joi.string().allow("").optional(),
   imagePublicIds: Joi.array().max(10).items(Joi.string().allow("")).optional(),
-  validatedDescription: Joi.string().optional(),
+  validatedDescription: Joi.string().allow("").optional(),
   stock: Joi.number().optional(),
   stockQuantity: Joi.number().optional(),
   isActive: Joi.boolean().optional()

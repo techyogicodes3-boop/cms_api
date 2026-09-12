@@ -261,7 +261,7 @@ exports.updateItem = async (req, h) => {
   if (normalizedImageUrls !== undefined) updateData.imageUrls = normalizedImageUrls;
   if (normalizedImagePublicIds !== undefined) updateData.imagePublicIds = normalizedImagePublicIds;
   else if (imagesWereUpdated) updateData.imagePublicIds = [];
-  if (validatedDescription) updateData.validatedDescription = validatedDescription;
+  if (validatedDescription !== undefined) updateData.validatedDescription = validatedDescription;
   if (stock !== undefined) updateData.stock = stock;
   if (stockQuantity !== undefined) updateData.stock = stockQuantity; // 👈 mapping
   if (isActive !== undefined) updateData.isActive = isActive;

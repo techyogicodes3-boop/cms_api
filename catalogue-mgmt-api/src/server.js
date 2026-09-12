@@ -13,6 +13,8 @@ const itemRoutes = require("./routes/item.routes");
 const uploadRoutes = require("./routes/upload.routes");
 const searchRoutes = require("./routes/search.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const commerceRoutes = require("./routes/commerce.routes");
+const userRoutes = require("./routes/user.routes");
 
 function getAllowedOrigins() {
   const configured = (process.env.CORS_ORIGINS || process.env.FRONTEND_ORIGINS || "")
@@ -83,6 +85,8 @@ const start = async () => {
   server.route(uploadRoutes);
   server.route(searchRoutes);
   server.route(dashboardRoutes);
+  server.route(commerceRoutes);
+  server.route(userRoutes);
 
   await server.start();
   console.log("Server running at", server.info.uri);

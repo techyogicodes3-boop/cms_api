@@ -27,6 +27,7 @@ async function getCurrentAuthUser(decoded) {
     return {
       id: decoded.id,
       uuid: decoded.id,
+      name: decoded.name || (decoded.role === "admin" ? "Dev Admin" : "Dev Customer"),
       email: decoded.email || "mock@example.com",
       role: decoded.role,
       status: "active",
@@ -34,7 +35,7 @@ async function getCurrentAuthUser(decoded) {
   }
 
   const user = await User.findOne({ uuid: decoded.id })
-    .select("uuid name email role status")
+    .select("uuid name email role status phone address")
     .lean();
 
   if (!user) return null;
@@ -49,6 +50,8 @@ async function getCurrentAuthUser(decoded) {
     email: user.email,
     role: user.role,
     status: user.status || "active",
+    phone: user.phone || "",
+    address: user.address || { streetAddress: "", city: "", state: "", zipcode: "" },
   };
 }
 
