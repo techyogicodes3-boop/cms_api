@@ -7,6 +7,18 @@ const { isMockMode } = require("../utils/mockMode");
 const mockInquiries = [];
 const mockOrders = [];
 
+function excelDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date;
+}
+
+function excelNumber(value, fallback = 0) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
 function publicOrder(order) {
   return {
     id: order.uuid,
@@ -121,9 +133,8 @@ exports.getAdminActivity = async () => {
 };
 
 function excelResponse(h, workbook, filename) {
-  const payload = Buffer.from(`\uFEFF${workbook}`, "utf8");
-  return h.response(payload)
-    .type("application/vnd.ms-excel; charset=utf-8")
+  return h.response(workbook)
+    .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     .header("Content-Disposition", `attachment; filename="${filename}"`)
     .header("X-Content-Type-Options", "nosniff")
     .header("Cache-Control", "no-store");
@@ -134,17 +145,17 @@ exports.exportInquiries = async (req, h) => {
     ? mockInquiries
     : await Inquiry.find().sort({ createdAt: -1 }).lean();
   const columns = [
-    { label: "Inquiry ID", value: (row) => row.uuid },
-    { label: "Submitted At", value: (row) => row.createdAt ? new Date(row.createdAt).toISOString() : "" },
-    { label: "Name", value: (row) => row.name },
-    { label: "Company", value: (row) => row.company },
-    { label: "Mobile", value: (row) => row.mobile },
-    { label: "Email", value: (row) => row.email },
-    { label: "Subject", value: (row) => row.subject },
-    { label: "Message", value: (row) => row.message },
-    { label: "Status", value: (row) => row.status },
+    { label: "Submitted At", value: (row) => excelDate(row.createdAt), width: 21, numFmt: "dd-mmm-yyyy hh:mm" },
+    { label: "Customer Name", value: (row) => row.name || "", width: 24 },
+    { label: "Company", value: (row) => row.company || "", width: 24 },
+    { label: "Mobile Number", value: (row) => String(row.mobile || ""), width: 16 },
+    { label: "Email Address", value: (row) => row.email || "", width: 30 },
+    { label: "Subject", value: (row) => row.subject || "", width: 30 },
+    { label: "Message", value: (row) => row.message || "", width: 45 },
+    { label: "Status", value: (row) => row.status || "", width: 15 },
   ];
-  return excelResponse(h, createExcelWorkbook("Inquiries", columns, inquiries), "chocotraill-inquiries.xls");
+  const workbook = await createExcelWorkbook("Inquiries", columns, inquiries);
+  return excelResponse(h, workbook, "chocotraill-inquiries.xlsx");
 };
 
 exports.exportOrders = async (req, h) => {
@@ -156,20 +167,24 @@ exports.exportOrders = async (req, h) => {
     return items.length ? items.map((item) => ({ order, item })) : [{ order, item: {} }];
   });
   const columns = [
-    { label: "Order ID", value: ({ order }) => order.uuid },
-    { label: "Submitted At", value: ({ order }) => order.createdAt ? new Date(order.createdAt).toISOString() : "" },
-    { label: "Customer", value: ({ order }) => order.customer?.name },
-    { label: "Email", value: ({ order }) => order.customer?.email },
-    { label: "Phone", value: ({ order }) => order.customer?.phone },
-    { label: "Address", value: ({ order }) => [order.customer?.streetAddress, order.customer?.city, order.customer?.state, order.customer?.zipcode].filter(Boolean).join(", ") },
-    { label: "Product ID", value: ({ item }) => item.catalogueItemId },
-    { label: "Product", value: ({ item }) => item.name },
-    { label: "Quantity", value: ({ item }) => item.quantity },
-    { label: "Unit Price", value: ({ item }) => item.unitPrice },
-    { label: "Line Total", value: ({ item }) => item.lineTotal },
-    { label: "Order Total", value: ({ order }) => order.total },
-    { label: "Status", value: ({ order }) => order.status },
-    { label: "Instructions", value: ({ order }) => order.specialInstruction },
+    { label: "Submitted At", value: ({ order }) => excelDate(order.createdAt), width: 21, numFmt: "dd-mmm-yyyy hh:mm" },
+    { label: "Customer Name", value: ({ order }) => order.customer?.name || "", width: 24 },
+    { label: "Email Address", value: ({ order }) => order.customer?.email || "", width: 30 },
+    { label: "Phone Number", value: ({ order }) => String(order.customer?.phone || ""), width: 16 },
+    { label: "Street Address", value: ({ order }) => order.customer?.streetAddress || "", width: 35 },
+    { label: "City", value: ({ order }) => order.customer?.city || "", width: 18 },
+    { label: "State", value: ({ order }) => order.customer?.state || "", width: 20 },
+    { label: "PIN Code", value: ({ order }) => String(order.customer?.zipcode || ""), width: 12 },
+    { label: "Product Name", value: ({ item }) => item.name || "", width: 30 },
+    { label: "Quantity", value: ({ item }) => excelNumber(item.quantity), width: 12, numFmt: "0" },
+    { label: "Unit Price (INR)", value: ({ item }) => excelNumber(item.unitPrice), width: 18, numFmt: "₹#,##0.00" },
+    { label: "Line Total (INR)", value: ({ item }) => excelNumber(item.lineTotal, excelNumber(item.unitPrice) * excelNumber(item.quantity)), width: 18, numFmt: "₹#,##0.00" },
+    { label: "Order Subtotal (INR)", value: ({ order }) => excelNumber(order.subtotal, excelNumber(order.total)), width: 21, numFmt: "₹#,##0.00" },
+    { label: "Order Total (INR)", value: ({ order }) => excelNumber(order.total, excelNumber(order.subtotal)), width: 18, numFmt: "₹#,##0.00" },
+    { label: "Shipping Method", value: ({ order }) => order.shippingMethod || "standard", width: 18 },
+    { label: "Order Status", value: ({ order }) => order.status || "", width: 18 },
+    { label: "Special Instructions", value: ({ order }) => order.specialInstruction || "", width: 40 },
   ];
-  return excelResponse(h, createExcelWorkbook("Orders", columns, rows), "chocotraill-orders.xls");
+  const workbook = await createExcelWorkbook("Orders", columns, rows);
+  return excelResponse(h, workbook, "chocotraill-orders.xlsx");
 };

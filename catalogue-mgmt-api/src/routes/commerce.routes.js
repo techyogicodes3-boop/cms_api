@@ -24,6 +24,18 @@ module.exports = [
   },
   {
     method: "GET",
+    path: "/api/v1/admin/reports/inquiries.xlsx",
+    options: { pre: [verifyToken, isAdmin] },
+    handler: CommerceController.exportInquiries,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/admin/reports/orders.xlsx",
+    options: { pre: [verifyToken, isAdmin] },
+    handler: CommerceController.exportOrders,
+  },
+  {
+    method: "GET",
     path: "/api/v1/admin/reports/inquiries.xls",
     options: { pre: [verifyToken, isAdmin] },
     handler: CommerceController.exportInquiries,

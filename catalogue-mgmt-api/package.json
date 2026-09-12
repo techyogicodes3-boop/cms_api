@@ -20,6 +20,7 @@
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "hapi-rate-limit": "^8.0.0",
     "hapi-swagger": "^17.3.2",
     "joi": "^17.13.3",
