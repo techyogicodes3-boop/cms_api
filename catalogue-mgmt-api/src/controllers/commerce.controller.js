@@ -121,9 +121,11 @@ exports.getAdminActivity = async () => {
 };
 
 function excelResponse(h, workbook, filename) {
-  return h.response(workbook)
+  const payload = Buffer.from(`\uFEFF${workbook}`, "utf8");
+  return h.response(payload)
     .type("application/vnd.ms-excel; charset=utf-8")
     .header("Content-Disposition", `attachment; filename="${filename}"`)
+    .header("X-Content-Type-Options", "nosniff")
     .header("Cache-Control", "no-store");
 }
 
@@ -133,7 +135,7 @@ exports.exportInquiries = async (req, h) => {
     : await Inquiry.find().sort({ createdAt: -1 }).lean();
   const columns = [
     { label: "Inquiry ID", value: (row) => row.uuid },
-    { label: "Submitted At", value: (row) => new Date(row.createdAt).toISOString() },
+    { label: "Submitted At", value: (row) => row.createdAt ? new Date(row.createdAt).toISOString() : "" },
     { label: "Name", value: (row) => row.name },
     { label: "Company", value: (row) => row.company },
     { label: "Mobile", value: (row) => row.mobile },
@@ -149,14 +151,17 @@ exports.exportOrders = async (req, h) => {
   const orders = isMockMode()
     ? mockOrders
     : await Order.find().sort({ createdAt: -1 }).lean();
-  const rows = orders.flatMap((order) => order.items.map((item) => ({ order, item })));
+  const rows = orders.flatMap((order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+    return items.length ? items.map((item) => ({ order, item })) : [{ order, item: {} }];
+  });
   const columns = [
     { label: "Order ID", value: ({ order }) => order.uuid },
-    { label: "Submitted At", value: ({ order }) => new Date(order.createdAt).toISOString() },
-    { label: "Customer", value: ({ order }) => order.customer.name },
-    { label: "Email", value: ({ order }) => order.customer.email },
-    { label: "Phone", value: ({ order }) => order.customer.phone },
-    { label: "Address", value: ({ order }) => [order.customer.streetAddress, order.customer.city, order.customer.state, order.customer.zipcode].filter(Boolean).join(", ") },
+    { label: "Submitted At", value: ({ order }) => order.createdAt ? new Date(order.createdAt).toISOString() : "" },
+    { label: "Customer", value: ({ order }) => order.customer?.name },
+    { label: "Email", value: ({ order }) => order.customer?.email },
+    { label: "Phone", value: ({ order }) => order.customer?.phone },
+    { label: "Address", value: ({ order }) => [order.customer?.streetAddress, order.customer?.city, order.customer?.state, order.customer?.zipcode].filter(Boolean).join(", ") },
     { label: "Product ID", value: ({ item }) => item.catalogueItemId },
     { label: "Product", value: ({ item }) => item.name },
     { label: "Quantity", value: ({ item }) => item.quantity },

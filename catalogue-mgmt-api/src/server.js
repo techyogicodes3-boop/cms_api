@@ -6,6 +6,7 @@ const HapiSwagger = require("hapi-swagger");
 const Pack = require("../package.json");
 require("dotenv").config();
 const connectDB = require("./config/db");
+const ensureBootstrapAdmin = require("./services/adminBootstrap.service");
 
 const authRoutes = require("./routes/auth.routes");
 const catalogueRoutes = require("./routes/catalogue.routes");
@@ -33,6 +34,7 @@ function getAllowedOrigins() {
 
 const start = async () => {
   await connectDB();
+  await ensureBootstrapAdmin();
 
   const server = Hapi.server({
     port: process.env.PORT || 9000,
@@ -40,7 +42,8 @@ const start = async () => {
     routes: {
       cors: {
         origin: getAllowedOrigins(),
-        credentials: true
+        credentials: true,
+        additionalExposedHeaders: ["content-disposition"],
       }
     }
   });

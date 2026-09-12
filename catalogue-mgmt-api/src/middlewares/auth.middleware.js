@@ -17,9 +17,18 @@ function applyAuthBypass(request) {
 }
 
 function getRequestToken(request) {
-  const [scheme, bearerToken] = request.headers.authorization?.split(" ") || [];
-  if (scheme === "Bearer" && bearerToken) return bearerToken;
+  const authorization = String(request.headers.authorization || "").trim();
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (match?.[1]) return match[1].trim();
   return request.state?.auth_token || null;
+}
+
+function clearAuthState(response) {
+  const options = { path: "/" };
+  if (process.env.AUTH_COOKIE_DOMAIN) options.domain = process.env.AUTH_COOKIE_DOMAIN;
+  return response
+    .unstate("auth_token", options)
+    .unstate("auth_role", options);
 }
 
 async function getCurrentAuthUser(decoded) {
@@ -66,17 +75,17 @@ exports.verifyToken = async (request, h) => {
     const currentUser = await getCurrentAuthUser(decoded);
 
     if (!currentUser) {
-      return h.response({ success:false, message:"Unauthorized" }).code(401).unstate("auth_token", { path: "/" }).unstate("auth_role", { path: "/" }).takeover();
+      return clearAuthState(h.response({ success:false, message:"Unauthorized" }).code(401)).takeover();
     }
 
     if (currentUser.disabled) {
-      return h.response({ success:false, message:"Account disabled" }).code(403).unstate("auth_token", { path: "/" }).unstate("auth_role", { path: "/" }).takeover();
+      return clearAuthState(h.response({ success:false, message:"Account disabled" }).code(403)).takeover();
     }
 
     request.authUser = currentUser;
     return h.continue;
   } catch {
-    return h.response({ success:false, message:"Unauthorized" }).code(401).unstate("auth_token", { path: "/" }).unstate("auth_role", { path: "/" }).takeover();
+    return clearAuthState(h.response({ success:false, message:"Unauthorized" }).code(401)).takeover();
   }
 };
 

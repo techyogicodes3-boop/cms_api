@@ -17,13 +17,19 @@ function getCookieOptions({ httpOnly = true } = {}) {
     ? process.env.AUTH_COOKIE_SECURE === "true"
     : process.env.NODE_ENV === "production";
 
-  return {
+  const options = {
     ttl: jwtConfig.cookieMaxAgeSeconds * 1000,
     isHttpOnly: httpOnly,
     isSecure: secure,
     isSameSite: sameSite,
     path: "/",
   };
+
+  if (process.env.AUTH_COOKIE_DOMAIN) {
+    options.domain = process.env.AUTH_COOKIE_DOMAIN;
+  }
+
+  return options;
 }
 
 function attachAuthCookies(response, token, role) {
@@ -33,9 +39,11 @@ function attachAuthCookies(response, token, role) {
 }
 
 function clearAuthCookies(response) {
+  const options = { path: "/" };
+  if (process.env.AUTH_COOKIE_DOMAIN) options.domain = process.env.AUTH_COOKIE_DOMAIN;
   return response
-    .unstate(TOKEN_COOKIE, { path: "/" })
-    .unstate(ROLE_COOKIE, { path: "/" });
+    .unstate(TOKEN_COOKIE, options)
+    .unstate(ROLE_COOKIE, options);
 }
 
 const getMockAuth = (email = "admin@example.com", role = "admin") => ({
@@ -54,7 +62,8 @@ const getMockAuth = (email = "admin@example.com", role = "admin") => ({
 const toClientAuthPayload = (auth) => ({
   success: true,
   data: {
-    user: auth.data.user
+    user: auth.data.user,
+    token: auth.data.token,
   }
 });
 
@@ -96,7 +105,8 @@ exports.register = async (req, h) => {
   return attachAuthCookies(h.response({
     success: true,
     data: {
-      user: { id: user.uuid, name, email, role: user.role }
+      user: { id: user.uuid, name, email, role: user.role },
+      token,
     }
   }).code(201), token, user.role);
 };
@@ -133,7 +143,8 @@ exports.login = async (req, h) => {
   return attachAuthCookies(h.response({
     success: true,
     data: {
-      user: { id: user.uuid, name: user.name, email, role: user.role }
+      user: { id: user.uuid, name: user.name, email, role: user.role },
+      token,
     }
   }), token, user.role);
 };
