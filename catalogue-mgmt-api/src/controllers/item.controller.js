@@ -4,9 +4,9 @@ const { isMockMode } = require("../utils/mockMode");
 const mock = require("../mock/mockData");
 
 const {
-  deleteImages,
   deleteRemovedImages
 } = require("../services/image.service");
+const { deleteExclusiveRecordImages } = require("../services/mediaCleanup.service");
 
 const normalizePayloadImageUrls = (payload = {}) => {
   if (Array.isArray(payload.imageUrls)) {
@@ -293,15 +293,30 @@ exports.deleteItem = async (req, h) => {
     }).code(503);
   }
 
-  const item = await CatalogueItem.findOneAndDelete({ uuid: id });
+  const item = await CatalogueItem.findOne({ uuid: id }).lean();
 
   if (!item) {
-    return { success: false, message: "Item not found" };
+    return h.response({ success: false, message: "Item not found" }).code(404);
   }
 
-  await deleteImages(item.imagePublicIds?.length ? item.imagePublicIds : [item.imagePublicId].filter(Boolean));
+  let mediaResult;
+  try {
+    mediaResult = await deleteExclusiveRecordImages([item], { itemIds: [id] });
+  } catch (error) {
+    console.error("Item media cleanup failed:", error.message || error);
+    return h.response({
+      success: false,
+      message: "Item was not deleted because its Cloudinary images could not be removed. Please try again.",
+    }).code(502);
+  }
 
-  return h.response({ success: true, message: "Item deleted successfully" }).code(200);
+  await CatalogueItem.deleteOne({ uuid: id });
+
+  return h.response({
+    success: true,
+    message: "Item and related images deleted permanently.",
+    data: { deletedImages: mediaResult.deleted.length },
+  }).code(200);
 };
 exports.getItemAndHappyReviewStats = async (req, h) => {
   if (isMockMode()) {

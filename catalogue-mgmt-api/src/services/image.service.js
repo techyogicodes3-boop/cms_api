@@ -222,6 +222,59 @@ const deleteImages = async (publicIds = []) => {
   return results;
 };
 
+const publicIdFromCloudinaryUrl = (imageUrl) => {
+  try {
+    const url = new URL(imageUrl);
+    if (!url.hostname.endsWith("cloudinary.com") || !url.pathname.includes("/upload/")) return null;
+    let path = url.pathname.split("/upload/")[1];
+    const parts = path.split("/").filter(Boolean);
+    const versionIndex = parts.findIndex((part) => /^v\d+$/.test(part));
+    if (versionIndex >= 0) path = parts.slice(versionIndex + 1).join("/");
+    return decodeURIComponent(path).replace(/\.[a-z0-9]+$/i, "") || null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveImagePublicIds = async ({ publicIds = [], imageUrls = [] } = {}) => {
+  const uniqueUrls = [...new Set(imageUrls.filter(Boolean))];
+  const resolved = new Set(publicIds.filter(Boolean));
+
+  if (uniqueUrls.length > 0) {
+    const assets = await ImageAsset.find({ imageUrl: { $in: uniqueUrls } }).select("publicId").lean();
+    assets.forEach((asset) => asset.publicId && resolved.add(asset.publicId));
+    uniqueUrls.forEach((url) => {
+      const parsed = publicIdFromCloudinaryUrl(url);
+      if (parsed) resolved.add(parsed);
+    });
+  }
+
+  return [...resolved];
+};
+
+const deleteImagesStrict = async (publicIds = []) => {
+  const uniqueIds = [...new Set(publicIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+  ensureCloudinaryConfig();
+
+  const assets = await ImageAsset.find({ publicId: { $in: uniqueIds } })
+    .select("publicId resourceType mediaType mimeType")
+    .lean();
+  const assetMap = new Map(assets.map((asset) => [asset.publicId, asset]));
+
+  await Promise.all(uniqueIds.map(async (publicId) => {
+    const asset = assetMap.get(publicId);
+    const resourceType = asset?.resourceType || asset?.mediaType || (asset?.mimeType?.startsWith("video/") ? "video" : "image");
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType, invalidate: true });
+    if (!result || !["ok", "not found"].includes(result.result)) {
+      throw new Error(`Cloudinary did not delete ${publicId}.`);
+    }
+  }));
+
+  await ImageAsset.deleteMany({ publicId: { $in: uniqueIds } });
+  return uniqueIds;
+};
+
 const deleteRemovedImages = async (oldPublicIds = [], newPublicIds = []) => {
   const next = new Set(newPublicIds.filter(Boolean));
   const removed = oldPublicIds.filter((publicId) => publicId && !next.has(publicId));
@@ -239,5 +292,7 @@ module.exports = {
   listImages,
   deleteImage,
   deleteImages,
+  deleteImagesStrict,
   deleteRemovedImages,
+  resolveImagePublicIds,
 };

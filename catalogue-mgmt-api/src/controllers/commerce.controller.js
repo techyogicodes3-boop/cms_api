@@ -115,7 +115,7 @@ exports.createOrder = async (req, h) => {
   return h.response({ success: true, data: publicOrder(order) }).code(201);
 };
 
-exports.getAdminActivity = async () => {
+exports.getAdminActivity = async (req, h) => {
   const [orders, inquiries] = isMockMode()
     ? [mockOrders.slice(0, 20), mockInquiries.slice(0, 20)]
     : await Promise.all([
@@ -123,13 +123,13 @@ exports.getAdminActivity = async () => {
       Inquiry.find().sort({ createdAt: -1 }).limit(20).lean(),
     ]);
 
-  return {
+  return h.response({
     success: true,
     data: {
       orders: orders.map(publicOrder),
       inquiries,
     },
-  };
+  }).header("Cache-Control", "no-store, no-cache, must-revalidate");
 };
 
 function excelResponse(h, workbook, filename) {

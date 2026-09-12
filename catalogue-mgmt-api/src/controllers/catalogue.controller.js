@@ -2,9 +2,9 @@ const Catalogue = require("../models/Catalogue");
 const CatalogueItem = require("../models/CatalogueItem");
 const CatalogueType = require("../models/CatalogueType");
 const {
-  deleteImages,
   deleteRemovedImages
 } = require("../services/image.service");
+const { deleteExclusiveRecordImages } = require("../services/mediaCleanup.service");
 const { isMockMode } = require("../utils/mockMode");
 const mock = require("../mock/mockData");
 
@@ -353,23 +353,37 @@ exports.deleteCatalogue = async (req, h) => {
   }
 
   const { id } = req.params;
-  const catalogue = await Catalogue.findOneAndDelete({ uuid: id }).lean();
+  const catalogue = await Catalogue.findOne({ uuid: id }).lean();
   if (!catalogue) {
     return h.response({ success: false, message: "Catalogue not found" }).code(404);
   }
 
-  const items = await CatalogueItem.find({ catalogueId: id }).select("imagePublicIds imagePublicId").lean();
+  const items = await CatalogueItem.find({ catalogueId: id })
+    .select("uuid imageUrls imagePublicIds imageUrl imagePublicId")
+    .lean();
+
+  let mediaResult;
+  try {
+    mediaResult = await deleteExclusiveRecordImages([catalogue, ...items], {
+      catalogueIds: [id],
+      itemIds: items.map((item) => item.uuid),
+    });
+  } catch (error) {
+    console.error("Catalogue media cleanup failed:", error.message || error);
+    return h.response({
+      success: false,
+      message: "Catalogue was not deleted because its Cloudinary images could not be removed. Please try again.",
+    }).code(502);
+  }
+
   await CatalogueItem.deleteMany({ catalogueId: id });
+  await Catalogue.deleteOne({ uuid: id });
 
-  const itemImagePublicIds = items.flatMap((item) =>
-    item.imagePublicIds?.length ? item.imagePublicIds : [item.imagePublicId].filter(Boolean)
-  );
-  await deleteImages([
-    ...(catalogue?.imagePublicIds?.length ? catalogue.imagePublicIds : [catalogue?.imagePublicId]),
-    ...itemImagePublicIds
-  ]);
-
-  return h.response().code(204);
+  return h.response({
+    success: true,
+    message: "Catalogue, related items, and images deleted permanently.",
+    data: { deletedItems: items.length, deletedImages: mediaResult.deleted.length },
+  }).code(200);
 };
 
 
