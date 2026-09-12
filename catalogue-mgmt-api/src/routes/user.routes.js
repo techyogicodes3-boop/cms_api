@@ -1,6 +1,7 @@
 const UserController = require("../controllers/user.controller");
 const { updateProfileSchema } = require("../validators/commerce.validator");
 const { verifyToken, requireRole } = require("../middlewares/auth.middleware");
+const { validationFailAction } = require("../utils/validation");
 
 const isUser = requireRole("user");
 
@@ -14,7 +15,7 @@ module.exports = [
   {
     method: "PUT",
     path: "/api/v1/user/profile",
-    options: { pre: [verifyToken, isUser], validate: { payload: updateProfileSchema } },
+    options: { pre: [verifyToken, isUser], validate: { payload: updateProfileSchema, failAction: validationFailAction } },
     handler: UserController.updateProfile,
   },
 ];
